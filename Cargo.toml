@@ -20,8 +20,9 @@ required-features = ["commandline"]
 [lib]
 name = "grass"
 path = "src/lib.rs"
-# crate-type = ["cdylib", "rlib"]
+crate-type = ["cdylib", "rlib"]
 bench = false
+doctest = false
 
 [dependencies]
 clap = { version = "2.34.0", optional = true }
@@ -33,16 +34,19 @@ rand = { version = "0.8", optional = true }
 # todo: update to expose more info (for eww)
 # todo: update to use text_size::TextRange
 codemap = "0.1.3"
-wasm-bindgen = { version = "0.2.68", optional = true }
+serde-wasm-bindgen = "0.4.2"
+wasm-bindgen = { version = "0.2.68", optional = true,  features = ["serde-serialize"] }
 # todo: benchmark using phf for global functions
-phf = { version = "0.10.1", features = ["macros"] }
+phf = { version = "0.11.1", features = ["macros"] }
 indexmap = "1.9.0"
 # todo: do we really need interning for things?
 lasso = "0.6"
+serde = { version = "1.0.130", features = ["derive"] }
+getrandom = { version = "0.2", features = ["js"] }
 
 [features]
 # todo: no commandline by default
-default = ["commandline", "random"]
+default = ["random"]
 # Option (enabled by default): build a binary using clap
 commandline = ["clap"]
 # Option (enabled by default): enable the builtin functions `random([$limit])` and `unique-id()`
@@ -57,3 +61,5 @@ paste = "1.0.3"
 [profile.release]
 debug = true
 panic = "abort"
+lto = true
+codegen-units = 1

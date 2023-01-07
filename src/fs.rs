@@ -2,7 +2,8 @@ use std::{
     io::{self, Error, ErrorKind},
     path::Path,
 };
-
+#[cfg(feature = "wasm-exports")]
+use wasm_bindgen::prelude::*;
 /// A trait to allow replacing the file system lookup mechanisms.
 ///
 /// As it stands, this is imperfect: it’s still using the types and some operations from
@@ -68,5 +69,36 @@ impl Fs for NullFs {
             ErrorKind::NotFound,
             "NullFs, there is no file system",
         ))
+    }
+}
+
+#[cfg(feature = "wasm-exports")]
+#[wasm_bindgen(module = "denofs.js")]
+extern "C" {
+    pub fn read(path: &str) -> String;
+    pub fn is_file(path: &str) -> bool;
+    pub fn is_dir(path: &str) -> bool;
+}
+
+#[cfg(feature = "wasm-exports")]
+#[derive(Debug)]
+pub struct JsFS;
+
+#[cfg(feature = "wasm-exports")]
+impl Fs for JsFS {
+
+    #[inline]
+    fn is_file(&self, path: &Path) -> bool {
+            is_file(path.to_str().unwrap())
+    }   
+
+    #[inline]
+    fn is_dir(&self, path: &Path) -> bool {
+        is_dir(path.to_str().unwrap())
+    }
+
+    #[inline]
+    fn read(&self, path: &Path) -> io::Result<Vec<u8>> {
+        Ok(read(path.to_str().unwrap()).into_bytes())
     }
 }
