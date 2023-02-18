@@ -87,6 +87,10 @@ use serializer::Serializer;
 #[cfg(feature = "wasm-exports")]
 use wasm_bindgen::prelude::*;
 
+#[cfg(feature = "wasm-exports")]
+pub use crate::fs::JsFS;
+use js_sys::Array as JSArray;
+
 use codemap::CodeMap;
 
 pub use crate::error::{
@@ -213,8 +217,95 @@ pub fn from_string(input: String, options: &Options) -> Result<String> {
     from_string_with_file_name(input, "stdin", options)
 }
 
+/// Bellow is the part where WASM is added to the library
+/// This library uses a custom FS system for Deno.
+/// please note that it could be modified for NodeJS or even the browser.
 #[cfg(feature = "wasm-exports")]
-#[wasm_bindgen(js_name = from_string)]
-pub fn from_string_js(input: String) -> std::result::Result<String, String> {
-    from_string(input, &Options::default()).map_err(|e| e.to_string())
+#[wasm_bindgen(getter_with_clone)]
+pub struct JSOptions {
+    pub load_paths: js_sys::Array,
+    pub style: String,
+    pub quiet: bool,
+    pub unicode_error_messages: bool,
+    pub input_syntax: String,
+    pub allows_charset: bool,
+}
+#[cfg(feature = "wasm-exports")]
+impl std::fmt::Debug for JSOptions {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("JSOptions")
+            .field("load_paths", &self.load_paths)
+            .field("style", &self.style)
+            .field("quiet", &self.quiet)
+            .field("unicode_error_messages", &self.unicode_error_messages)
+            .field("input_syntax", &self.input_syntax)
+            .field("allows_charset", &self.allows_charset)
+            .finish()
+    }
+}
+#[cfg(feature = "wasm-exports")]
+#[wasm_bindgen(js_name = "from_string")]
+pub fn wasm_from_string(p: String, options: JSOptions ) -> std::result::Result<String, JsValue> {
+    let jsopts: JSOptions = options;//serde_wasm_bindgen::from_value(options)?;
+    let opt = Options {
+        style: match  jsopts.style.as_str() {
+            "compressed" => OutputStyle::Compressed,
+            "expanded" => OutputStyle::Expanded,
+            _ => OutputStyle::Compressed,
+        },
+        unicode_error_messages: jsopts.unicode_error_messages,
+        allows_charset: jsopts.allows_charset,
+        load_paths: jsopts.load_paths.iter().map(|p| std::path::PathBuf::from(p.as_string().unwrap())).collect(),
+        quiet: jsopts.quiet,
+        input_syntax: match jsopts.input_syntax.as_str() {
+            "scss" => Some(InputSyntax::Scss),
+            "sass" => Some(InputSyntax::Sass),
+            "css" => Some(InputSyntax::Css),
+            _ => None,
+        },
+        fs: &JsFS,
+        ..Default::default()
+    };
+    from_string(p, &opt).map_err(|e| JsValue::from_str(&format!("{}", e)))
+}
+
+#[cfg(feature = "wasm-exports")]
+#[wasm_bindgen(js_name = "get_config")]
+pub fn wasm_get_config() -> JSOptions {
+    // let load_paths = Box::new([]);
+    let example = JSOptions {
+        load_paths: JSArray::new(),
+        style: String::from("expanded"),
+        quiet: true,
+        input_syntax: String::from("scss"),
+        unicode_error_messages: true,
+        allows_charset: true,
+    };
+    example
+}
+
+#[cfg(feature = "wasm-exports")]
+#[wasm_bindgen(js_name = "from_file")]
+pub fn wasm_from_file(path: String, options: JSOptions) -> std::result::Result<String, JsValue> {
+    let jsopts: JSOptions = options;
+    let opt = Options {
+        style: match  jsopts.style.as_str() {
+            "compressed" => OutputStyle::Compressed,
+            "expanded" => OutputStyle::Expanded,
+            _ => OutputStyle::Compressed,
+        },
+        unicode_error_messages: jsopts.unicode_error_messages,
+        allows_charset: jsopts.allows_charset,
+        load_paths: jsopts.load_paths.iter().map(|p| std::path::PathBuf::from(p.as_string().unwrap())).collect(),
+        quiet: jsopts.quiet,
+        input_syntax: match jsopts.input_syntax.as_str() {
+            "scss" => Some(InputSyntax::Scss),
+            "sass" => Some(InputSyntax::Sass),
+            "css" => Some(InputSyntax::Css),
+            _ => None,
+        },
+        fs: &JsFS,
+        ..Default::default()
+    };
+    from_path(&path, &opt).map_err(|e| JsValue::from_str(&format!("{}", e)))
 }
