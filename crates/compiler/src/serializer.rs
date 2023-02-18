@@ -5,7 +5,7 @@ use codemap::{CodeMap, Span};
 use crate::{
     ast::{CssStmt, MediaQuery, Style, SupportsRule},
     color::{Color, ColorFormat, NAMED_COLORS},
-    common::{Brackets, ListSeparator, QuoteKind},
+    common::{BinaryOp, Brackets, ListSeparator, QuoteKind},
     error::SassResult,
     selector::{
         Combinator, ComplexSelector, ComplexSelectorComponent, CompoundSelector, Namespace, Pseudo,
@@ -358,7 +358,8 @@ impl<'a> Serializer<'a> {
                     self.buffer.push(b')');
                 }
 
-                let operator_whitespace = !self.options.is_compressed() || op.precedence() == 1;
+                let operator_whitespace =
+                    !self.options.is_compressed() || matches!(op, BinaryOp::Plus | BinaryOp::Minus);
 
                 if operator_whitespace {
                     self.buffer.push(b' ');
@@ -589,17 +590,11 @@ impl<'a> Serializer<'a> {
                     .trim_end_matches('.'),
             );
         } else {
-            let p = 10.0_f64.powi(10);
-
-            let n = (num * p).round() / p;
-
-            let formatted = n.to_string();
-
-            if formatted.ends_with(".0") {
-                buffer.push_str(formatted.trim_end_matches('0').trim_end_matches('.'));
-            } else {
-                buffer.push_str(&formatted);
-            }
+            buffer.push_str(
+                format!("{:.10}", num)
+                    .trim_end_matches('0')
+                    .trim_end_matches('.'),
+            );
         }
 
         if buffer.is_empty() || buffer == "-" || buffer == "-0" {
